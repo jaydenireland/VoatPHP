@@ -60,7 +60,7 @@ class Voat {
     function block_subverse($subverse) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
-            return 0;
+            return null;
         }
         $output = $this->endpoint("/v/" . $subverse . "/block", "POST");
         return $output;
@@ -68,7 +68,7 @@ class Voat {
     function unblock_subverse($subverse) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
-            return 0;
+            return null;
         }
         $output = $this->endpoint("/v/" . $subverse . "/block", "DELETE");
         return $output;
@@ -76,7 +76,7 @@ class Voat {
     function post_url($subverse, $title, $url, $nsfw=0) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
-            return 0;
+            return null;
         }
         $data = http_build_query(
             array(
@@ -91,7 +91,7 @@ class Voat {
     function post_self($subverse, $title, $content, $nsfw=0) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
-            return 0;
+            return null;
         }
         $data = json_encode(
             array(
@@ -126,10 +126,30 @@ class Voat {
         endif;
     }
     function edit_comment($commentid, $content) {
+        if (!$this->loggedin) {
+            $this->error = "Not logged in";
+            return null;
+        }
         $data = array(
             value => $content
             );
         $ouput = $this->endpoint("/comments/" . $commentid, "POST", json_encode($data), 1);
+        return $output;
+    }
+    function delete_comment($commentid) {
+        if (!$this->loggedin) {
+            $this->error = "Not logged in";
+            return null;
+        }
+        $ouput = $this->endpoint("/comments/" . $commentid, "DELETE", "", 1);
+        return $output;
+    }
+    function user_prefernces() {
+        if (!$this->loggedin) {
+            $this->error = "Not logged in";
+            return null;
+        }
+        $output = $this->endpoint("/u/preferences");
         return $output;
     }
 }
