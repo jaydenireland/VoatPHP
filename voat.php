@@ -112,4 +112,24 @@ class Voat {
         $output = $this->endpoint($url, "GET");
         return $output;
     }
+    function get_comment($id) {
+        $output = $this->endpoint("/comments/" . $id, "GET");
+        return $output;
+    }
+    function comment($type, $comment, $commentid, $submissionid, $subverse) {
+        if ($type == "top"):
+            $ouput = $this->endpoint("/v/" . $subverse . "/" . $submissionid . "/comment");
+            return $output;
+        elseif ($type == "reply"):
+            $ouput = $this->endpoint("/comments/" . $commentid);
+            return $output;
+        endif;
+    }
+    function edit_comment($commentid, $content) {
+        $data = array(
+            value => $content
+            );
+        $ouput = $this->endpoint("/comments/" . $commentid, "POST", json_encode($data), 1);
+        return $output;
+    }
 }
