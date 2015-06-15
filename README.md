@@ -20,10 +20,6 @@ if ($voat->error) {
     echo "That username and password didn't work";
 }
 ```
-The wrapper returns the json decoded response in an array, so some debugging should be in place but most responses look like this before parsed by json_decode
-```JSON
-{"code": "", "data": {}, "success": true, "error": ""}
-```
 ### Here are all the functions you can call at the moment
 ```PHP
 user($username, $password);
