@@ -4,6 +4,9 @@ Voat PHP API
 A php library that allows for easy access to the Voat API.
 
 # Documentation (WIP...)
+## Encryption
+A file called "encryption.key" is needed in the directory that the voat.php script is in. 
+In the file should be a password that will be used to encrypt all the user tokens, by the wishes of [/u/PutItOutPlease](https://fakevout.azurewebsites.net/v/Api/comments/2641)
 ## Initialize the class
 ```PHP
 require_once("path/to/your/voat.php");
