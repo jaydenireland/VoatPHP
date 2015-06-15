@@ -1,16 +1,20 @@
 <?php
 class Voat {
     private $apikey;
-    var $error;
+    var $error = array();
     var $baseurl = "https://fakevout.azurewebsites.net/api/";
     var $version = "v1";
     var $token;
     var $loggedin = false;
-    
-    function __construct($apikey) {
+    var $encryptionkey = "awkdmnawoidm";
+    public function __construct($apikey) {
         $this->apikey = $apikey;
+        $test = $this->get_subverse("test");//Test if API key worked or not
+        if ($test['success'] !== true) {
+            array_push($this->error, $test['error']['message']);
+        }
     }
-    function endpoint($endpoint, $type="POST", $data="", $json=false) { //Access an endpoint
+    public function endpoint($endpoint, $type="POST", $data="", $json=false) { //Access an endpoint
             $ch = curl_init($this->baseurl . $this->version . "/" . $endpoint);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $type);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -23,9 +27,24 @@ class Voat {
                 array_push($headers, "Content-type: application/json");
             }
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    return json_decode(curl_exec($ch), 1);
+            $test = json_decode(curl_exec($ch), 1);
+            if (!$test['success']) {
+                array_push($this->error, $test['error']['message']);
+            }
+            return $test;
     }
-    function user($username, $password) { //Authenitcate user
+    public function user($username, $password) { //Authenitcate user
+        $foundtoken = 0;
+        $flatfile = json_decode(file_get_contents("tokens.json"), 1);
+        while ($users = current($flatfile['users'])) {
+            if ($users['username'] == $username) {
+                $encrypted = $flatfile['users'][key($flatfile['users'])]['token'];
+                $this->token = openssl_decrypt($encrypted, "aes128", $this->encryptionkey);
+                $foundtoken = 1;
+            }
+            next($flatfile['users']);
+        }
+        if (!$foundtoken) {
         $data = http_build_query(
             array(
                 grant_type => "password",
@@ -42,22 +61,33 @@ class Voat {
             ));
         $output =  json_decode(curl_exec($ch), 1);
         $this->token = $output['access_token'];
-        $this->loggedin = true;
+        error_reporting(0);
+        array_push($flatfile['users'], array(
+            username => $username,
+            token => openssl_encrypt($output['access_token'], "aes128", $this->encryptionkey))
+        );
+        file_put_contents("tokens.json", json_encode($flatfile));
+        error_reporting(E_ERROR | E_WARNING | E_PARSE);
+        }
+        //echo $this->token;
+        if ($output['success']) {
+            $this->loggedin = true;
+        }
         return $output;
     }
-    function logout() {
+    public function logout() {
         $this->token = null;
         $this->loggedin = false;
     }
-    function get_subverse($subverse) {
+    public function get_subverse($subverse) {
         $output = $this->endpoint("/v/" . $subverse, "GET");
         return $output;
     }
-    function get_subverse_info($subverse) {
+    public function get_subverse_info($subverse) {
         $output = $this->endpoint("/v/" . $subverse . "/info", "GET");
         return $output;
     }
-    function block_subverse($subverse) {
+    public function block_subverse($subverse) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
             return null;
@@ -65,7 +95,7 @@ class Voat {
         $output = $this->endpoint("/v/" . $subverse . "/block", "POST");
         return $output;
     }
-    function unblock_subverse($subverse) {
+    public function unblock_subverse($subverse) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
             return null;
@@ -73,7 +103,7 @@ class Voat {
         $output = $this->endpoint("/v/" . $subverse . "/block", "DELETE");
         return $output;
     }
-    function post_url($subverse, $title, $url, $nsfw=0) {
+    public function post_url($subverse, $title, $url, $nsfw=0) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
             return null;
@@ -88,7 +118,7 @@ class Voat {
         $output = $this->endpoint("/v/" . $subverse, "POST", $data, 1);
         return $output;
     }
-    function post_self($subverse, $title, $content, $nsfw=0) {
+    public function post_self($subverse, $title, $content, $nsfw=0) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
             return null;
@@ -103,7 +133,7 @@ class Voat {
         $output = $this->endpoint("/v/" . $subverse, "POST", $data, 1);
         return $output;
     }
-    function get_comments($subverse, $id, $parentid=false) {
+    public function get_comments($subverse, $id, $parentid=false) {
         if ($parentid):
             $url = "/v/" . $subverse . "/" . $id  . "/comments/" . $parentid;
         else:
@@ -112,20 +142,29 @@ class Voat {
         $output = $this->endpoint($url, "GET");
         return $output;
     }
-    function get_comment($id) {
+    public function get_comment($id) {
         $output = $this->endpoint("/comments/" . $id, "GET");
         return $output;
     }
-    function comment($type, $comment, $commentid, $submissionid, $subverse) {
-        if ($type == "top"):
-            $ouput = $this->endpoint("/v/" . $subverse . "/" . $submissionid . "/comment");
-            return $output;
-        elseif ($type == "reply"):
-            $ouput = $this->endpoint("/comments/" . $commentid);
-            return $output;
-        endif;
+    public function comment_top($comment, $subverse, $submissionid) {
+        $data = json_encode(
+            array(
+                value => $comment
+                )
+            );
+        $ouput = $this->endpoint("/v/" . $subverse . "/" . $submissionid . "/comment", "POST", $data, 1);
+        return $output;
     }
-    function edit_comment($commentid, $content) {
+    public function comment_reply($comment, $commentid) {
+            $data = json_encode(
+                array(
+                    value => $comment
+                    )
+                );
+            $output = $this->endpoint("/v/" . $subverse . "/" . $submissionid . "/comment/" . $commentid, "POST", $data, 1);
+            return $output;
+    }
+    public function edit_comment($commentid, $content) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
             return null;
@@ -136,7 +175,7 @@ class Voat {
         $ouput = $this->endpoint("/comments/" . $commentid, "POST", json_encode($data), 1);
         return $output;
     }
-    function delete_comment($commentid) {
+    public function delete_comment($commentid) {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
             return null;
@@ -144,7 +183,7 @@ class Voat {
         $ouput = $this->endpoint("/comments/" . $commentid, "DELETE", "", 1);
         return $output;
     }
-    function user_prefernces() {
+    public function user_prefernces() {
         if (!$this->loggedin) {
             $this->error = "Not logged in";
             return null;
