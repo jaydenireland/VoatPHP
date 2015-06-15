@@ -6,8 +6,9 @@ class Voat {
     var $version = "v1";
     var $token;
     var $loggedin = false;
-    var $encryptionkey = "awkdmnawoidm";
+    var $encryptionkey;
     public function __construct($apikey) {
+        $this->encryptionkey = file_get_contents("encryption.key");
         $this->apikey = $apikey;
         $test = $this->get_subverse("test");//Test if API key worked or not
         if ($test['success'] !== true) {
@@ -35,6 +36,16 @@ class Voat {
     }
     public function user($username, $password) { //Authenitcate user
         $foundtoken = 0;
+        if (!file_exists("tokens.json")) {
+            $myfile = fopen("tokens.json", "w") or die("Unable to open file!");
+            $txt = json_encode(
+                array(
+                    'users'=> array()
+                    )
+                );
+            fwrite($myfile, $txt);
+            fclose($myfile);
+        }
         $flatfile = json_decode(file_get_contents("tokens.json"), 1);
         while ($users = current($flatfile['users'])) {
             if ($users['username'] == $username) {
@@ -63,13 +74,13 @@ class Voat {
         $this->token = $output['access_token'];
         error_reporting(0);
         array_push($flatfile['users'], array(
-            username => $username,
-            token => openssl_encrypt($output['access_token'], "aes128", $this->encryptionkey))
+            'username' => $username,
+            'token' => openssl_encrypt($output['access_token'], "aes128", $this->encryptionkey))
         );
         file_put_contents("tokens.json", json_encode($flatfile));
         error_reporting(E_ERROR | E_WARNING | E_PARSE);
         }
-        //echo $this->token;
+        //3echo $this->token;
         if ($output['success']) {
             $this->loggedin = true;
         }
@@ -110,9 +121,9 @@ class Voat {
         }
         $data = http_build_query(
             array(
-                title => $title,
-                nsfw => $nsfw,
-                url => $url
+                'title' => $title,
+                'nsfw' => $nsfw,
+                'url' => $url
                 )
             );
         $output = $this->endpoint("/v/" . $subverse, "POST", $data, 1);
@@ -125,9 +136,9 @@ class Voat {
         }
         $data = json_encode(
             array(
-                title => $title,
-                nsfw => $nsfw,
-                content => $content
+                'title' => $title,
+                'nsfw' => $nsfw,
+                'content' => $content
                 )
             );
         $output = $this->endpoint("/v/" . $subverse, "POST", $data, 1);
@@ -149,7 +160,7 @@ class Voat {
     public function comment_top($comment, $subverse, $submissionid) {
         $data = json_encode(
             array(
-                value => $comment
+                'value' => $comment
                 )
             );
         $ouput = $this->endpoint("/v/" . $subverse . "/" . $submissionid . "/comment", "POST", $data, 1);
@@ -158,7 +169,7 @@ class Voat {
     public function comment_reply($comment, $commentid) {
             $data = json_encode(
                 array(
-                    value => $comment
+                    'value' => $comment
                     )
                 );
             $output = $this->endpoint("/v/" . $subverse . "/" . $submissionid . "/comment/" . $commentid, "POST", $data, 1);
@@ -170,7 +181,7 @@ class Voat {
             return null;
         }
         $data = array(
-            value => $content
+            'value' => $content
             );
         $ouput = $this->endpoint("/comments/" . $commentid, "POST", json_encode($data), 1);
         return $output;
